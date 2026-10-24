@@ -28,7 +28,7 @@ interface OrderGroup {
 export class OrderService {
   constructor(
     @Inject(FILMS_REPOSITORY)
-    private readonly filmsRepository: FilmsRepository
+    private readonly filmsRepository: FilmsRepository,
   ) {}
 
   async create(order: OrderDto): Promise<OrderResult> {
@@ -37,7 +37,7 @@ export class OrderService {
     for (const group of groups) {
       const session = await this.filmsRepository.findSession(
         group.film,
-        group.session
+        group.session,
       );
       if (!session) {
         throw new NotFoundException('Фильм или сеанс не найден');
@@ -51,7 +51,7 @@ export class OrderService {
       const added = await this.filmsRepository.addTakenSeats(
         group.film,
         group.session,
-        group.seats
+        group.seats,
       );
       if (!added) {
         await this.rollback(booked);
@@ -118,7 +118,7 @@ export class OrderService {
       await this.filmsRepository.removeTakenSeats(
         group.film,
         group.session,
-        group.seats
+        group.seats,
       );
     }
   }

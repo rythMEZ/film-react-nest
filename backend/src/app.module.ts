@@ -3,10 +3,10 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { ConfigModule } from '@nestjs/config';
 import * as path from 'node:path';
 
-import { AppConfig, AppConfigModule } from './app.config.provider';
+import { APP_CONFIG, AppConfig, AppConfigModule } from './app.config.provider';
 import { OrderModule } from './order/order.module';
 import { FilmsModule } from './films/films.module';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [
@@ -18,11 +18,19 @@ import { MongooseModule } from '@nestjs/mongoose';
       isGlobal: true,
       cache: true,
     }),
-
     AppConfigModule,
-    MongooseModule.forRootAsync({
-      inject: ['CONFIG'],
-      useFactory: (config: AppConfig) => ({ uri: config.database.url }),
+    TypeOrmModule.forRootAsync({
+      inject: [APP_CONFIG],
+      useFactory: (config: AppConfig) => ({
+        type: config.database.driver,
+        host: config.database.host,
+        port: config.database.port,
+        database: config.database.name,
+        username: config.database.username,
+        password: config.database.password,
+        autoLoadEntities: true,
+        synchronize: false,
+      }),
     }),
     FilmsModule,
     OrderModule,
