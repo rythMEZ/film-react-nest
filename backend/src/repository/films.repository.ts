@@ -10,11 +10,11 @@ export interface FilmsRepository {
   addTakenSeats(
     filmId: string,
     sessionId: string,
-    seats: string[]
+    seats: string[],
   ): Promise<boolean>;
   removeTakenSeats(
     filmId: string,
     sessionId: string,
-    seats: string[]
+    seats: string[],
   ): Promise<void>;
 }
