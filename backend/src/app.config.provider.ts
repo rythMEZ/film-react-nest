@@ -8,7 +8,11 @@ export interface AppConfig {
 }
 export interface AppConfigDatabase {
   driver: 'postgres';
-  url: string;
+  host: string;
+  port: number;
+  name: string;
+  username: string;
+  password: string;
 }
 
 export const configProvider = {
@@ -20,14 +24,14 @@ export const configProvider = {
       throw new Error(`Unsupported database driver: ${driver}`);
     }
 
-    const databaseUrl = new URL(config.getOrThrow<string>('DATABASE_URL'));
-    databaseUrl.username = config.getOrThrow<string>('DATA_USERNAME');
-    databaseUrl.password = config.getOrThrow<string>('DATA_PASSWORD');
-
     return {
       database: {
         driver,
-        url: databaseUrl.toString(),
+        host: config.getOrThrow<string>('DATABASE_HOST'),
+        port: Number(config.getOrThrow<string>('DATABASE_PORT')),
+        name: config.getOrThrow<string>('DATABASE_NAME'),
+        username: config.getOrThrow<string>('DATA_USERNAME'),
+        password: config.getOrThrow<string>('DATA_PASSWORD'),
       },
     };
   },

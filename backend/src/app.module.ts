@@ -23,7 +23,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       inject: [APP_CONFIG],
       useFactory: (config: AppConfig) => ({
         type: config.database.driver,
-        url: config.database.url,
+        host: config.database.host,
+        port: config.database.port,
+        database: config.database.name,
+        username: config.database.username,
+        password: config.database.password,
         autoLoadEntities: true,
         synchronize: false,
       }),
