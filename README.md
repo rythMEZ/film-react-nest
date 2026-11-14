@@ -1,47 +1,19 @@
 # FILM!
 
-## О проекте
+REST API и клиент онлайн-кинотеатра «FILM!»: каталог фильмов, расписание сеансов и бронирование билетов.
 
-REST API онлайн-кинотеатра «FILM!»: каталог фильмов, расписания сеансов и бронирование билетов.
-
-**Стек:** NestJS 10, TypeScript, MongoDB + Mongoose, `@nestjs/config`, `@nestjs/serve-static`, `class-validator` / `class-transformer`.
+**Стек:** NestJS 10, TypeScript, PostgreSQL, TypeORM, `@nestjs/config`, `@nestjs/serve-static`, `class-validator` / `class-transformer`. Фронтенд — React + Vite.
 
 **Реализовано:**
 
 * `GET /films` — список фильмов в формате `{ total, items }`.
 * `GET /films/:id/schedule` — расписание сеансов фильма (`404`, если фильм не найден).
-* `POST /order` — бронирование билетов: валидация DTO, проверка существования фильма и сеанса, границ ряда и места, занятости мест и откат уже занятых мест при частичной ошибке.
-
+* `POST /order` — бронирование билетов: валидация DTO, проверка фильма и сеанса, границ ряда и места, занятости мест.
 * Статика: изображения фильмов по `/content/afisha`.
 
-**Архитектура:** слои controller → service → repository; доступ к данным через абстракцию `FilmsRepository` с двумя реализациями (Mongo и in-memory), выбор через `DATABASE_DRIVER`; глобальный `ValidationPipe` (`whitelist`, `forbidNonWhitelisted`, `transform`), конфигурация через `.env`.
 
-## Установка
+Запуск:
 
-### MongoDB
-
-Установите MongoDB скачав дистрибутив с официального сайта или с помощью пакетного менеджера вашей ОС. Также можно воспользоваться Docker (см. ветку `feat/docker`.
-
-
-### Бэкенд
-
-Перейдите в папку с исходным кодом бэкенда
-
-`cd backend`
-
-Установите зависимости (точно такие же, как в package-lock.json) помощью команд
-
-`npm ci` или `yarn install --frozen-lockfile`
-
-Создайте `.env` файл из примера `.env.example`, в нём укажите:
-
-* `DATABASE_DRIVER` - тип драйвера СУБД - в нашем случае это `mongodb` 
-* `DATABASE_URL` - адрес СУБД MongoDB, например `mongodb://127.0.0.1:27017/practicum`.  
-
-MongoDB должна быть установлена и запущена.
-
-Для проверки отправьте тестовый запрос с помощью Postman или `curl`.
-
-
-
-
+```bash
+npm run dev
+```

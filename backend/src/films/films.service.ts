@@ -9,7 +9,7 @@ import { FilmDto, ScheduleDto } from './dto/films.dto';
 export class FilmsService {
   constructor(
     @Inject(FILMS_REPOSITORY)
-    private readonly filmsRepository: FilmsRepository
+    private readonly filmsRepository: FilmsRepository,
   ) {}
 
   findAll(): Promise<FilmDto[]> {
