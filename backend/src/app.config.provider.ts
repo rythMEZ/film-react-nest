@@ -1,11 +1,16 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { isLoggerFormat, LoggerFormat } from './logger/logger.types';
 
 export const APP_CONFIG = 'CONFIG';
 
 export interface AppConfig {
   database: AppConfigDatabase;
+  logging: {
+    format: LoggerFormat;
+  };
 }
+
 export interface AppConfigDatabase {
   driver: 'postgres';
   host: string;
@@ -24,6 +29,12 @@ export const configProvider = {
       throw new Error(`Unsupported database driver: ${driver}`);
     }
 
+    const loggerFormat = config.get<string>('LOG_FORMAT', 'dev');
+
+    if (!isLoggerFormat(loggerFormat)) {
+      throw new Error(`Неподдерживаемый формат логгера: ${loggerFormat}`);
+    }
+
     return {
       database: {
         driver,
@@ -32,6 +43,9 @@ export const configProvider = {
         name: config.getOrThrow<string>('DATABASE_NAME'),
         username: config.getOrThrow<string>('DATA_USERNAME'),
         password: config.getOrThrow<string>('DATA_PASSWORD'),
+      },
+      logging: {
+        format: loggerFormat,
       },
     };
   },
