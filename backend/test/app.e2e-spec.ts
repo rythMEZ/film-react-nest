@@ -13,7 +13,7 @@ interface FilmItem {
 interface ScheduleItem {
   id: string;
   daytime: string;
-  hall: string;
+  hall: number;
   rows: number;
   seats: number;
   price: number;
@@ -142,7 +142,7 @@ describe('Afisha API (e2e)', () => {
         expect.objectContaining({
           id: expect.any(String),
           daytime: expect.any(String),
-          hall: expect.any(String),
+          hall: expect.any(Number),
           rows: expect.any(Number),
           seats: expect.any(Number),
           price: expect.any(Number),

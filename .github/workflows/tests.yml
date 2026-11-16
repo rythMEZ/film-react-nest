@@ -46,6 +46,20 @@ jobs:
         
   test_endpoints:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: film_project
+          POSTGRES_USER: student
+          POSTGRES_PASSWORD: student
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U student -d film_project"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Set up GitHub Actions
         uses: actions/checkout@v4
@@ -55,10 +69,43 @@ jobs:
           node-version: 18.x
       - name: Get testing lib
         run: set -eu && git clone --depth 1 $REP_TESTS $DIR_TESTS
-      - name: Start project
-        run: bash $DIR_TESTS/bin/start_project.sh
+      - name: Prepare PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+          PGPASSWORD=student psql -h 127.0.0.1 -U student -d film_project \
+            -v ON_ERROR_STOP=1 \
+            -f backend/test/prac.docker.init.sql
+
+          PGPASSWORD=student psql -h 127.0.0.1 -U student -d film_project \
+            -v ON_ERROR_STOP=1 \
+            -f backend/test/prac.films.sql
+
+          PGPASSWORD=student psql -h 127.0.0.1 -U student -d film_project \
+            -v ON_ERROR_STOP=1 \
+            -f backend/test/prac.shedules.sql
+      - name: Start backend
+        run: |
+          cat > backend/.env <<'ENV'
+          DATABASE_DRIVER=postgres
+          DATABASE_NAME=film_project
+          DATABASE_HOST=127.0.0.1
+          DATABASE_PORT=5432
+          DATA_USERNAME=student
+          DATA_PASSWORD=student
+          LOG_FORMAT=json
+          ENV
+
+          cd backend
+          npm ci
+          npm run build
+          npm run start:prod > /tmp/backend.log 2>&1 &
       - name: Run tests
         run: bash $DIR_TESTS/bin/endpoints.sh
+      - name: Show backend logs on failure
+        if: failure()
+        run: cat /tmp/backend.log
 
   prepare_delivery:
     name: Prepare delivery

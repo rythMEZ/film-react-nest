@@ -70,7 +70,7 @@ describe('FilmsController', () => {
         {
           id: 'f2e429b0-685d-41f8-a8cd-1d8cb63b99ce',
           daytime: '2026-11-14T10:00:00.000Z',
-          hall: '1',
+          hall: 1,
           rows: 10,
           seats: 12,
           price: 500,

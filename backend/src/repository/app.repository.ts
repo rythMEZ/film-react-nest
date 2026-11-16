@@ -118,7 +118,7 @@ export class AppRepository implements FilmsRepository {
     return {
       id: schedule.id,
       daytime: schedule.daytime,
-      hall: `${schedule.hall}`,
+      hall: schedule.hall,
       rows: schedule.rows,
       seats: schedule.seats,
       price: schedule.price,
