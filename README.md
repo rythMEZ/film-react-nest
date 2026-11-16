@@ -1,5 +1,7 @@
 # FILM!
 
+Публикация по адресу https://film-film-film.nomorepartiessite.ru
+
 REST API и клиент онлайн-кинотеатра «FILM!»: каталог фильмов, расписание сеансов и бронирование билетов.
 
 **Стек:** NestJS 10, TypeScript, PostgreSQL, TypeORM, `@nestjs/config`, `@nestjs/serve-static`, `class-validator` / `class-transformer`. Фронтенд — React + Vite.
