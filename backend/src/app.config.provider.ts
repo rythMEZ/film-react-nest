@@ -5,6 +5,7 @@ import { isLoggerFormat, LoggerFormat } from './logger/logger.types';
 export const APP_CONFIG = 'CONFIG';
 
 export interface AppConfig {
+  port: number;
   database: AppConfigDatabase;
   logging: {
     format: LoggerFormat;
@@ -36,6 +37,7 @@ export const configProvider = {
     }
 
     return {
+      port: Number(config.getOrThrow<string>('PORT')),
       database: {
         driver,
         host: config.getOrThrow<string>('DATABASE_HOST'),

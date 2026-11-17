@@ -19,6 +19,6 @@ async function bootstrap() {
   app.enableCors();
   const config = app.get<AppConfig>(APP_CONFIG);
   app.useLogger(LoggerFactory.create(config.logging.format));
-  await app.listen(3000);
+  await app.listen(config.port);
 }
 bootstrap();
