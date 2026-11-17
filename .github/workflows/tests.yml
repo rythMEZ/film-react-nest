@@ -95,6 +95,7 @@ jobs:
           DATA_USERNAME=student
           DATA_PASSWORD=student
           LOG_FORMAT=json
+          PORT=3000
           ENV
 
           cd backend
