@@ -1,0 +1,116 @@
+name: film-react-nest
+
+services:
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/rythmez/film-react-nest/frontend:latest}
+    build:
+      context: ./frontend
+      target: artifacts
+      args:
+        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required}
+        VITE_CDN_URL: ${VITE_CDN_URL:?VITE_CDN_URL is required}
+    volumes:
+      - frontend_dist:/output
+    networks:
+      - film-network
+    restart: on-failure
+
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/rythmez/film-react-nest/backend:latest}
+    build:
+      context: ./backend
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:?NODE_ENV is required}
+      DATABASE_DRIVER: ${DATABASE_DRIVER:?DATABASE_DRIVER is required}
+      DATABASE_HOST: ${DATABASE_HOST:?DATABASE_HOST is required}
+      DATABASE_PORT: ${DATABASE_PORT:?DATABASE_PORT is required}
+      DATABASE_NAME: ${POSTGRES_DB:?POSTGRES_DB is required}
+      DATA_USERNAME: ${POSTGRES_USER:?POSTGRES_USER is required}
+      DATA_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      LOG_FORMAT: ${LOG_FORMAT:?LOG_FORMAT is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/afisha/films').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks:
+      - film-network
+    restart: unless-stopped
+
+  nginx:
+    image: ${NGINX_IMAGE:-ghcr.io/rythmez/film-react-nest/nginx:latest}
+    build:
+      context: ./nginx
+    ports:
+      - "127.0.0.1:${HTTP_PORT:?HTTP_PORT is required}:80"
+    volumes:
+      - frontend_dist:/usr/share/nginx/html:ro
+    depends_on:
+      frontend:
+        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
+    networks:
+      - film-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/test/prac.docker.init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./backend/test/prac.films.sql:/docker-entrypoint-initdb.d/02-films.sql:ro
+      - ./backend/test/prac.shedules.sql:/docker-entrypoint-initdb.d/03-schedules.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - film-network
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    profiles: ["tools"]
+    env_file:
+      - .env
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:?PGADMIN_DEFAULT_EMAIL is required}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?PGADMIN_DEFAULT_PASSWORD is required}
+    ports:
+      - "127.0.0.1:${PGADMIN_PORT:?PGADMIN_PORT is required}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - film-network
+    restart: unless-stopped
+
+volumes:
+  frontend_dist:
+  postgres_data:
+  pgadmin_data:
+
+networks:
+  film-network:
+    driver: bridge

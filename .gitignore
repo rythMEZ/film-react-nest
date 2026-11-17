@@ -2,3 +2,4 @@ node_modules
 .idea
 /agents.md
 /skills/
+.env

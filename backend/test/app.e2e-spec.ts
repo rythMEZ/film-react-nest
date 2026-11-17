@@ -13,7 +13,7 @@ interface FilmItem {
 interface ScheduleItem {
   id: string;
   daytime: string;
-  hall: string;
+  hall: number;
   rows: number;
   seats: number;
   price: number;
@@ -46,7 +46,7 @@ describe('Afisha API (e2e)', () => {
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,
-      })
+      }),
     );
     await app.init();
   });
@@ -72,7 +72,7 @@ describe('Afisha API (e2e)', () => {
   const getFreeSeats = async (
     filmId: string,
     sessionId: string,
-    count: number
+    count: number,
   ): Promise<{
     session: ScheduleItem;
     seats: { row: number; seat: number }[];
@@ -99,7 +99,7 @@ describe('Afisha API (e2e)', () => {
     filmId: string,
     session: ScheduleItem,
     row: number,
-    seat: number
+    seat: number,
   ) => ({
     film: filmId,
     session: session.id,
@@ -127,7 +127,7 @@ describe('Afisha API (e2e)', () => {
           title: expect.any(String),
           rating: expect.any(Number),
           tags: expect.any(Array),
-        })
+        }),
       );
     });
   });
@@ -142,12 +142,12 @@ describe('Afisha API (e2e)', () => {
         expect.objectContaining({
           id: expect.any(String),
           daytime: expect.any(String),
-          hall: expect.any(String),
+          hall: expect.any(Number),
           rows: expect.any(Number),
           seats: expect.any(Number),
           price: expect.any(Number),
           taken: expect.any(Array),
-        })
+        }),
       );
     });
 
@@ -166,7 +166,7 @@ describe('Afisha API (e2e)', () => {
     it('оформляет заказ и возвращает билеты с уникальными id', async () => {
       const { session, seats } = await getFreeSeats(FILM_ID, SESSION_ID, 2);
       const tickets = seats.map(({ row, seat }) =>
-        buildTicket(FILM_ID, session, row, seat)
+        buildTicket(FILM_ID, session, row, seat),
       );
 
       const { body } = await request(app.getHttpServer())
@@ -177,7 +177,7 @@ describe('Afisha API (e2e)', () => {
       expect(body.total).toBe(tickets.length);
       expect(body.items).toHaveLength(tickets.length);
       expect(new Set(body.items.map((item) => item.id)).size).toBe(
-        tickets.length
+        tickets.length,
       );
       body.items.forEach((item, index) => {
         expect(item).toEqual(
@@ -188,14 +188,14 @@ describe('Afisha API (e2e)', () => {
             daytime: session.daytime,
             row: tickets[index].row,
             seat: tickets[index].seat,
-          })
+          }),
         );
       });
 
       const schedule = await getSchedule(FILM_ID);
       const updated = schedule.find((item) => item.id === SESSION_ID);
       seats.forEach(({ row, seat }) =>
-        expect(updated.taken).toContain(`${row}:${seat}`)
+        expect(updated.taken).toContain(`${row}:${seat}`),
       );
     });
 
@@ -246,7 +246,7 @@ describe('Afisha API (e2e)', () => {
         .send(
           buildOrder([
             { ...buildTicket(FILM_ID, session, 1, 1), session: UNKNOWN_ID },
-          ])
+          ]),
         )
         .expect(404);
     });

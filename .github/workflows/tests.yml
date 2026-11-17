@@ -1,40 +1,183 @@
-name: Tests 14 sprint
+name: CI/CD 14 sprint
 
 on:
   push:
     branches:
-      - '**'
+      - "**"
     tags:
-      - '**'
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 env:
   DIR_TESTS: /tmp/tests-back-to-the-film
   REP_TESTS: https://github.com/Yandex-Practicum/tests-back-to-the-film.git
+
 jobs:
+  test_buildx:
+    name: Test Docker Buildx
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Verify Buildx
+        run: docker buildx inspect --bootstrap
+  
   test_backend:
     runs-on: ubuntu-latest
     steps:
-    - name: Set up GitHub Actions
-      uses: actions/checkout@v4
-    - name: Use Node.js 18.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 18.x
-    - name: Get testing lib
-      run: set -eu && git clone --depth 1 $REP_TESTS $DIR_TESTS
-    - name: Run tests
-      run: bash $DIR_TESTS/bin/backend.sh
+      - name: Set up GitHub Actions
+        uses: actions/checkout@v4
+      - name: Use Node.js 18.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+      - name: Get testing lib
+        run: set -eu && git clone --depth 1 $REP_TESTS $DIR_TESTS
+      - name: Run tests
+        run: bash $DIR_TESTS/bin/backend.sh
+        
   test_endpoints:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: film_project
+          POSTGRES_USER: student
+          POSTGRES_PASSWORD: student
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U student -d film_project"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
-    - name: Set up GitHub Actions
-      uses: actions/checkout@v4
-    - name: Use Node.js 18.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 18.x
-    - name: Get testing lib
-      run: set -eu && git clone --depth 1 $REP_TESTS $DIR_TESTS
-    - name: Start project
-      run: bash $DIR_TESTS/bin/start_project.sh
-    - name: Run tests
-      run: bash $DIR_TESTS/bin/endpoints.sh
+      - name: Set up GitHub Actions
+        uses: actions/checkout@v4
+      - name: Use Node.js 18.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+      - name: Get testing lib
+        run: set -eu && git clone --depth 1 $REP_TESTS $DIR_TESTS
+      - name: Prepare PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+          PGPASSWORD=student psql -h 127.0.0.1 -U student -d film_project \
+            -v ON_ERROR_STOP=1 \
+            -f backend/test/prac.docker.init.sql
+
+          PGPASSWORD=student psql -h 127.0.0.1 -U student -d film_project \
+            -v ON_ERROR_STOP=1 \
+            -f backend/test/prac.films.sql
+
+          PGPASSWORD=student psql -h 127.0.0.1 -U student -d film_project \
+            -v ON_ERROR_STOP=1 \
+            -f backend/test/prac.shedules.sql
+      - name: Start backend
+        run: |
+          cat > backend/.env <<'ENV'
+          DATABASE_DRIVER=postgres
+          DATABASE_NAME=film_project
+          DATABASE_HOST=127.0.0.1
+          DATABASE_PORT=5432
+          DATA_USERNAME=student
+          DATA_PASSWORD=student
+          LOG_FORMAT=json
+          PORT=3000
+          ENV
+
+          cd backend
+          npm ci
+          npm run build
+          npm run start:prod > /tmp/backend.log 2>&1 &
+      - name: Run tests
+        run: bash $DIR_TESTS/bin/endpoints.sh
+      - name: Show backend logs on failure
+        if: failure()
+        run: cat /tmp/backend.log
+
+  prepare_delivery:
+    name: Prepare delivery
+    needs:
+      - test_backend
+      - test_endpoints
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/review-3' ||
+      startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    outputs:
+      image_namespace: ${{ steps.image.outputs.namespace }}
+    steps:
+      - name: Normalize GHCR namespace
+        id: image
+        shell: bash
+        run: echo "namespace=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+  publish_images:
+    name: Publish ${{ matrix.component }}
+    needs:
+      - prepare_delivery
+    if: needs.prepare_delivery.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            target: production
+          - component: frontend
+            target: artifacts
+          - component: nginx
+            target: production
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate image metadata
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ needs.prepare_delivery.outputs.image_namespace }}/${{ matrix.component }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/review-3' }}
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.component }}
+          file: ./${{ matrix.component }}/Dockerfile
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          build-args: |
+            VITE_API_URL=https://api.film-film-film.nomorepartiessite.ru/api/afisha
+            VITE_CDN_URL=https://api.film-film-film.nomorepartiessite.ru/content/afisha
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
